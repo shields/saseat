@@ -108,7 +108,7 @@ func main() {
 	for ; ; iter++ {
 		// Cooling.
 		if iter%1000000 == 0 {
-			temp *= 0.98
+			temp *= 0.99
 		}
 
 		if time.Now().Sub(reported) > 1*time.Second {
