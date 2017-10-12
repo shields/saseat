@@ -32,7 +32,7 @@ var expectedGuests = []saseat.Guest{
 	{"Mr. Abraham Lincoln", "male"},
 	{"Mrs. Mary Lincoln", "female"},
 	{"Dr. Woodrow Wilson", ""},
-        {"X", ""},
+	{"X", ""},
 }
 
 func TestReadGuests(t *testing.T) {
