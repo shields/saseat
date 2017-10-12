@@ -25,12 +25,14 @@ import (
 var guestsFile = `Mr. Abraham Lincoln,
 Mrs. Mary Lincoln
 Dr. Woodrow Wilson
+X
 `
 
 var expectedGuests = []saseat.Guest{
 	{"Mr. Abraham Lincoln", "male"},
 	{"Mrs. Mary Lincoln", "female"},
 	{"Dr. Woodrow Wilson", ""},
+        {"X", ""},
 }
 
 func TestReadGuests(t *testing.T) {

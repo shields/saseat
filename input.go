@@ -49,7 +49,7 @@ func ReadGuests(in io.Reader) ([]Guest, error) {
 			fallthrough
 		case 1:
 			g.Name = record[0]
-			if g.Gender == "" {
+			if g.Gender == "" && len(g.Name) >= 5 {
 				if g.Name[:4] == "Mr. " {
 					g.Gender = "male"
 				}
