@@ -29,6 +29,8 @@ func TestScoring(t *testing.T) {
 	table.Left[2] = saseat.Guest{"Jane", "female"}
 	table.Right[0] = saseat.Guest{"Alexander", "male"}
 	table.Right[1] = saseat.Guest{"Kang", ""}
+	table.Right[2] = saseat.Guest{"Mx. Jones", ""}
+	table.Right[3] = saseat.Guest{"Kong", "ape"}
 	expectedTableScore := saseat.CapacityPref*math.Expm1(1) + saseat.ImbalancePref*math.Expm1(1)
 
 	prefs := saseat.Prefs{}
