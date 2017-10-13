@@ -85,12 +85,8 @@ func main() {
 			os.Exit(1)
 		}
 		t := saseat.NewTable(int(capacity))
-		for i := 0; i < int(capacity/2) && seated < len(guests); i++ {
-			t.Left[i] = guests[perm[seated]]
-			seated++
-		}
-		for i := 0; i < int(capacity/2) && seated < len(guests); i++ {
-			t.Right[i] = guests[perm[seated]]
+		for i := 0; i < int(capacity) && seated < len(guests); i++ {
+			t.Guests[i] = guests[perm[seated]]
 			seated++
 		}
 		t.Rescore(prefs)
@@ -150,14 +146,8 @@ func main() {
 
 // Makes a partial copy of a table.
 func copyTable(t *saseat.Table) saseat.Table {
-	tt := saseat.Table{
-		Left:        make([]saseat.Guest, len(t.Left)),
-		Right:       make([]saseat.Guest, len(t.Right)),
-		LeftScores:  make([]float64, len(t.LeftScores)),
-		RightScores: make([]float64, len(t.RightScores)),
-	}
-	copy(tt.Left, t.Left)
-	copy(tt.Right, t.Right)
+	tt := saseat.NewTable(len(t.Guests))
+	copy(tt.Guests, t.Guests)
 	return tt
 }
 
@@ -182,10 +172,11 @@ func report(tables []saseat.Table) {
 }
 
 func printTable(n int, t saseat.Table) {
-	fmt.Printf("Table %d -- subtotal %.0f; table %.0f\n\n", n, t.Score, t.TableScore)
-	for i := 0; i < len(t.Left); i++ {
+	fmt.Printf("Round table %d -- subtotal %.0f\n\n", n, t.Score)
+	for i := 0; i < len(t.Guests)/2; i++ {
+		j := len(t.Guests)/2 + i
 		fmt.Printf("%5.0f %-30s  %5.0f %-30s\n",
-			t.LeftScores[i], t.Left[i].Name, t.RightScores[i], t.Right[i].Name)
+			t.Scores[i], t.Guests[i].Name, t.Scores[j], t.Guests[j].Name)
 	}
 	fmt.Printf("\n\n")
 }

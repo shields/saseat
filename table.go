@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// XXX
+// XXX INCOMPLETE HACKED VERSION FOR ROUND TABLES, WITH NO TESTS
+// XXX
+
 package saseat
 
 import (
@@ -20,137 +24,80 @@ import (
 )
 
 const (
-	// The ideal table has two possible seats left unset.  Apply
-	// an exponential penalty for having more or fewer seats.
-	CapacityPref = -50
-
-	// The ideal table has the same number of seats on each side.
-	// Apply an exponential penalty if that doesn't happen.
-	ImbalancePref = -400
-
 	// Apply a penalty if guests at adjacent seats both have
 	// genders and they are the same.
 	SameGenderPref = -10
-
-	// Weight how much to consider each neighbor.
-	AdjacentWeight  = 1
-	OppositeWeight  = 0.6
-	DiagonalWeight  = 0.3
-	SameTableWeight = 0.1
 )
 
 type Table struct {
-	Left, Right []Guest
+	Guests []Guest
 	// Each guest's total preference, including gender penalty.
-	LeftScores, RightScores []float64
-	// The table's score, not including guest scores.
-	TableScore float64
-	// The sum of the table scores and the guest scores.
+	Scores []float64
+	// The sum of the guest scores.
 	Score float64
 }
 
 // NewTable returns a new Table with capacity seats.  capacity must be
-// a positive even number.
+// a positive number.
 func NewTable(capacity int) Table {
 	return Table{
-		Left:        make([]Guest, capacity/2),
-		Right:       make([]Guest, capacity/2),
-		LeftScores:  make([]float64, capacity/2),
-		RightScores: make([]float64, capacity/2),
+		Guests: make([]Guest, capacity),
+		Scores: make([]float64, capacity),
 	}
 }
 
 // Rescore recalculates the scores based on the current guests.
 func (t *Table) Rescore(p Prefs) {
-	var left, right int
-	for _, g := range t.Left {
-		if g.Name != "" {
-			left++
-		}
-	}
-	for _, g := range t.Right {
-		if g.Name != "" {
-			right++
-		}
-	}
+	segment := 2 * math.Pi / float64(len(t.Guests))
 
-	t.TableScore = 0
-	t.TableScore += CapacityPref * math.Expm1(math.Abs(float64(
-		(len(t.Left)+len(t.Right)-2)-(left+right))))
-	t.TableScore += ImbalancePref * math.Expm1(math.Abs(float64(left-right)))
+	t.Score = 0
+	t.Scores = make([]float64, len(t.Scores))
 
-	t.scoreSide(t.Left, t.Right, t.LeftScores, p)
-	t.scoreSide(t.Right, t.Left, t.RightScores, p)
+	for i, g1 := range t.Guests {
+		for j, g2 := range t.Guests {
+			if i >= j {
+				continue
+			}
 
-	t.Score = t.TableScore
-	for _, s := range t.LeftScores {
-		if s != 0 {
+			x1 := math.Sin(segment * float64(i))
+			x2 := math.Sin(segment * float64(j))
+			y1 := math.Cos(segment * float64(i))
+			y2 := math.Cos(segment * float64(j))
+
+			// Magically apply exponentially weighted distance: squared
+			// Euclidean distance is just not taking the root of the sum of
+			// the squared distance.
+			d := (x1-x2)*(x1-x2) + (y1-y2)*(y1-y2)
+			// d can be up to 4, which is one diameter (2) squared.
+			weight := (4 - d) / 4
+			if weight < 0.1 {
+				weight = 0.1
+			}
+			s := p.Pref(g1.Name, g2.Name) * weight
+			t.Scores[i] += s
+			t.Scores[j] += s
 			t.Score += s
-		}
-	}
-	for _, s := range t.RightScores {
-		if s != 0 {
-			t.Score += s
+
+			if (i+1 == j || (i == 0 && j == len(t.Guests))) &&
+				g1.Gender != "" && g2.Gender != "" && g1.Gender == g2.Gender {
+				t.Score += SameGenderPref
+			}
 		}
 	}
 }
 
-func (t *Table) scoreSide(this, other []Guest, scores []float64, p Prefs) {
-	for i, g := range this {
-		var s float64
-		if i > 0 {
-			s += p.Pref(g.Name, this[i-1].Name) * AdjacentWeight
-			s += p.Pref(g.Name, other[i-1].Name) * DiagonalWeight
-			if g.Gender != "" && this[i-1].Gender != "" && g.Gender == this[i-1].Gender {
-				s += SameGenderPref
-			}
-		}
-		s += p.Pref(g.Name, other[i].Name) * OppositeWeight
-		if i < len(this)-1 {
-			s += p.Pref(g.Name, this[i+1].Name) * AdjacentWeight
-			s += p.Pref(g.Name, other[i+1].Name) * DiagonalWeight
-			if g.Gender != "" && this[i+1].Gender != "" && g.Gender == this[i+1].Gender {
-				s += SameGenderPref
-			}
-		}
-		// Check same-table scores for guests who are more than one
-		// space away.
-		for j := 0; j < i-1; j++ {
-			s += p.Pref(g.Name, this[j].Name) * SameTableWeight
-			s += p.Pref(g.Name, other[j].Name) * SameTableWeight
-		}
-		for j := i + 2; j < len(this); j++ {
-			s += p.Pref(g.Name, this[j].Name) * SameTableWeight
-			s += p.Pref(g.Name, other[j].Name) * SameTableWeight
-		}
-		scores[i] = s
-	}
-}
-
-// SwapSide randomly swaps some contiguous portion of the guests between this
+// Swap randomly swaps some contiguous portion of the guests between this
 // table and another table.  If t2 is this table, then guests will be swapped
 // between the left and right sides.  If max is -1, up to an entire side may be
 // swapped.
 func (t *Table) Swap(t2 *Table, max int) {
 	var side1, side2 []Guest
 	if t == t2 {
-		side1 = t.Left
-		side2 = t2.Right
+		side1 = t.Guests[0 : len(t.Guests)/2]
+		side2 = t.Guests[len(t.Guests)/2 : len(t.Guests)]
 	} else {
-		switch rand.Intn(4) {
-		case 0:
-			side1 = t.Left
-			side2 = t2.Left
-		case 1:
-			side1 = t.Left
-			side2 = t2.Right
-		case 2:
-			side1 = t.Right
-			side2 = t2.Left
-		case 3:
-			side1 = t.Right
-			side2 = t2.Right
-		}
+		side1 = t.Guests
+		side2 = t2.Guests
 	}
 
 	// side1 is the shorter side.
@@ -175,24 +122,5 @@ func (t *Table) Swap(t2 *Table, max int) {
 	// Swap.
 	for i := 0; i < n; i++ {
 		side1[offset+i], side2[offset2+i] = side2[offset2+i], side1[offset+i]
-	}
-	closeGaps(side1)
-	closeGaps(side2)
-}
-
-// closeGaps adjusts side such that all the guests have been moved to the
-// beginning and all the empty seats to the end.
-func closeGaps(side []Guest) {
-	var gaps int
-	for i := 0; i < len(side); i++ {
-		if gaps > 0 {
-			side[i-gaps] = side[i]
-		}
-		if side[i].Name == "" {
-			gaps++
-		}
-	}
-	for i := len(side) - gaps; i < len(side); i++ {
-		side[i] = Guest{}
 	}
 }
